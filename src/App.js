@@ -25,6 +25,12 @@ const p = [
     [0, 0, false, 1],
 ]
 
+const reflection = [
+    [-1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+]
+
 function App() {
     const {register, handleSubmit, watch} = useForm({
         defaultValues: {
