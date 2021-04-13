@@ -1,28 +1,28 @@
 import { Layer, Shape, Stage } from "react-konva";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const p = [
-    [159, 156, false, 1],
-    [159, 100, true, 1],
-    [180, 100, true, 1],
-    [180, 145, true, 1],
-    [220, 125, false, 1],
-    [130, 170, true, 1],
-    [130, 270, true, 1],
-    [310, 270, true, 1],
-    [310, 170, true, 1],
-    [130, 170, true, 1],
-    [220, 125, true, 1],
-    [310, 170, true, 1],
-    [235, 210, false, 1],
-    [205, 210, true, 1],
-    [205, 240, true, 1],
-    [235, 240, true, 1],
-    [235, 210, true, 1],
+    [159, 156, 1, false],
+    [159, 100, 1, true],
+    [180, 100, 1, true],
+    [180, 145, 1, true],
+    [220, 125, 1, false],
+    [130, 170, 1, true],
+    [130, 270, 1, true],
+    [310, 270, 1, true],
+    [310, 170, 1, true],
+    [130, 170, 1, true],
+    [220, 125, 1, true],
+    [310, 170, 1, true],
+    [235, 210, 1, false],
+    [205, 210, 1, true],
+    [205, 240, 1, true],
+    [235, 240, 1, true],
+    [235, 210, 1, true],
 
     // pattern:
-    [0, 0, false, 1],
+    [0, 0, 1, false],
 ]
 
 const reflection = [
@@ -30,6 +30,42 @@ const reflection = [
     [0, 1, 0],
     [0, 0, 1],
 ]
+
+const resizer_matrix = (r) => [
+    [r, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+]
+
+
+const rotate_matrix = (deg) => ([
+    [Math.cos(deg), Math.sin(deg), 0],
+    [-Math.sin(deg), Math.cos(deg), 0],
+    [0, 0, 1],
+])
+
+const multiplyMatrix = (A, B) => {
+    let i;
+    let rowsA = A.length, colsA = A[0].length,
+        rowsB = B.length, colsB = B[0].length,
+        C = [];
+
+    if (colsA !== rowsB) return false;
+
+    for (i = 0; i < rowsA; i++) C[i] = [];
+
+    for (let k = 0; k < colsB; k++) {
+        for (i = 0; i < rowsA; i++) {
+            let temp = 0;
+            for (let j = 0; j < rowsB; j++) temp += A[i][j] * B[j][k];
+            C[i][k] = temp;
+        }
+    }
+    return C;
+}
+
+const middle = (f, s) => [...multiplyMatrix([...f.map(([x, y, n]) => [x, y, n])], s)
+    .map(([x, y, n], index) => [x, y, n, f[index][3]])]
 
 function App() {
     const {register, handleSubmit, watch} = useForm({
@@ -40,37 +76,26 @@ function App() {
         }
     });
 
-    const {rotate, glass, size_x} = watch()
+    const {rotate, size_x} = watch()
 
     const [points, setPoints] = useState([...p]);
 
     const rotation = () => {
-        setPoints(s => [...s.map(([x, y, isDraw, thirdParty]) => {
-            const g = Math.PI * (rotate) / 180
-            console.log(points, g);
-            const nx = (x * Math.cos(g) + y * Math.sin(g))
-            const ny = x * -Math.sin(g) + y * Math.cos(g)
-            return [nx, ny, isDraw, thirdParty]
-        })])
+        setPoints(s => middle(s, rotate_matrix(Math.PI * (rotate) / 180)))
     }
 
     const glassing = () => {
-        setPoints(s => [...s.map(([x, y, isDraw, thirdParty]) => {
-            if (glass) {
-                const g = Math.PI
-                const nx = (x * Math.cos(g) + y * Math.sin(g) + 400)
-                const ny = x * -Math.sin(g) + y * Math.cos(g) + 400
-                return [nx, ny, isDraw]
-            } else
-                return [x, y, isDraw, thirdParty]
-        })])
+
+        setPoints(s => middle(s, reflection))
     }
 
+    useEffect(() => console.log(points), [points])
+    useEffect(() => console.log(rotate_matrix(rotate)), [rotate])
+
+
     const resizer = () => {
-        setPoints(s => [...s.map(([x, y, isDraw, thirdParty]) => {
-            const nx = x * size_x
-            return [nx, y, isDraw, thirdParty]
-        })])
+
+        setPoints(s => middle(s, resizer_matrix(size_x)))
     }
 
     return (
@@ -84,16 +109,16 @@ function App() {
                 <input ref={register()} name='rotate' type="number" onChange={() => rotation()}/>
                 Отражение: {'  '}
                 <input ref={register()} name='glass' type='checkbox' onChange={() => glassing()}/>
-                <br />
+                <br/>
                 Вернуть к истокам: {'  '}
                 <input ref={register()} name='glass' type='checkbox' onChange={() => setPoints([...p])}/>
             </div>
-            <Stage height={'900'} width={'1920'}>
+            <Stage height={900} width={1920}>
                 <Layer>
                     <Shape
                         sceneFunc={(context, shape) => {
                             context.beginPath();
-                            points.forEach(([x, y, isDraw]) => {
+                            points.forEach(([x, y, _, isDraw]) => {
                                 if (!isDraw) {
                                     context.moveTo(x, y)
                                     context.moveTo(x, y)
@@ -101,15 +126,10 @@ function App() {
                                     context.lineTo(x, y)
                                 }
                             })
-                            // }
-                            // )
-                            // context.quadraticCurveTo(150, 100, 260, 170);
-                            // context.closePath();
-                            // (!) Konva specific method, it is very important
                             context.fillStrokeShape(shape);
                         }
                         }
-                        // fill="#00D2FF"
+
                         stroke="black"
                         strokeWidth={1}
                     />
